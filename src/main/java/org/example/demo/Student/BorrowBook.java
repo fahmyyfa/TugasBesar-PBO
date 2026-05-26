@@ -259,7 +259,7 @@ public class BorrowBook extends Application {
                             document.save(baos);
                             document.close();
 
-                            if (LoginStudent.nimTextField.getText().equals("202310370311001")) {
+                            if (User.loginStudent.equals("202310370311001")) {
                                 sendEmail.sendEmail(Email1, subject, body);
                                 showPopupNotification(primaryStage, "NIM: " + User.loginStudent + "\n Book Borrowed Successfully On: " + formattedDateTime + "\n Book Must Be Returned On: " + formattedReturnDate + " (7 Days)" + "\n Email Succesfully Send To " + Email1);
                                 sendEmail.sendWithAttachment(Email1, subject, body, baos.toByteArray(), "Peminjaman_Buku.pdf");

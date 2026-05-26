@@ -23,10 +23,10 @@ import org.example.demo.Student.MenuStudent;
 import static org.example.demo.LoginAdmin.bgAll;
 
 public class LoginStudent extends Application {
-    public static TextField nimTextField = new TextField();
 
     @Override
     public void start(Stage primaryStage) {
+        TextField nimTextField = new TextField();
 
         // Create the AnchorPane
         AnchorPane root = new AnchorPane();
@@ -75,30 +75,14 @@ public class LoginStudent extends Application {
             errorLabel.setText("");
             String nim = nimTextField.getText();
             String password = passwordTextField.getText();
-            if(nim.isEmpty()) {
-                errorLabel.setText("NIM empty.");
-                return;
-            }
-            if(password.isEmpty()) {
-                errorLabel.setText("Password empty.");
-                return;
-            }
 
-            boolean find = false;
-            for (int i = 0; i < User.students.size(); i++) {
-                if(nim.equals(User.students.get(i).getNim())) {
-                    find = true;
-                    if(nim.equals(password)) {
-                        User.loginStudent = nim;
-                        MenuStudent menuStudent = new MenuStudent();
-                        menuStudent.start(primaryStage);
-                    } else {
-                        errorLabel.setText("Incorrect password.");
-                    }
-                }
-            }
-            if(!find) {
-                errorLabel.setText("NIM not found.");
+            String validationResult = validateLogin(nim, password);
+
+            if (validationResult.equals("SUCCESS")) {
+                MenuStudent menuStudent = new MenuStudent();
+                menuStudent.start(primaryStage);
+            } else {
+                errorLabel.setText(validationResult);
             }
         });
 
@@ -149,6 +133,32 @@ public class LoginStudent extends Application {
 
         // Apply theme
         DarkLightMode.applyTheme(root);
+    }
+
+    public String validateLogin(String nim, String password) {
+        if (nim.isEmpty()) {
+            return "NIM empty.";
+        }
+        if (password.isEmpty()) {
+            return "Password empty.";
+        }
+
+        boolean find = false;
+        for (int i = 0; i < User.students.size(); i++) {
+            if (nim.equals(User.students.get(i).getNim())) {
+                find = true;
+                if (nim.equals(password)) {
+                    User.loginStudent = nim;
+                    return "SUCCESS";
+                } else {
+                    return "Incorrect password.";
+                }
+            }
+        }
+        if (!find) {
+            return "NIM not found.";
+        }
+        return "";
     }
 
     public static void main(String[] args) {
