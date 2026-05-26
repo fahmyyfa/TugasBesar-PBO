@@ -32,13 +32,13 @@ import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.example.demo.DarkLightMode;
 import org.example.demo.Database.Book;
 import org.example.demo.Database.Database;
-import org.example.demo.Database.Student;
 import org.example.demo.Database.User;
+import org.example.demo.Domain.BorrowManager;
 import org.example.demo.LoginStudent;
 import org.example.demo.SendEmail;
+import org.example.demo.Service.NotificationService;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -51,9 +51,10 @@ public class BorrowBook extends Application {
 
     public static final String Email1 = "adnanamhar123@gmail.com";
     public static final String Email2 = "fahmimajid01@gmail.com";
-    private boolean isBookIdSet = false;  // Flag to track if the Book ID has been set
+    private boolean isBookIdSet = false;
 
     @Override
+    @SuppressWarnings({ "unchecked"})
     public void start(Stage primaryStage) {
         User.books.clear();
         Database.book_bookDatabase();
@@ -117,7 +118,7 @@ public class BorrowBook extends Application {
         column5.setCellValueFactory(new PropertyValueFactory<>("stock"));
 
         tableView.getColumns().addAll(column1, column2, column3, column4, column5);
-        tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
 
         ObservableList<Book> bookData = FXCollections.observableArrayList(User.books);
         tableView.setItems(bookData);
@@ -160,54 +161,26 @@ public class BorrowBook extends Application {
             for (Book book : User.books) {
                 if (book.getId_buku().equals(inputID)) {
                     find = true;
-                    if (book.getStock() > 0) {
-                        book.setStock(book.getStock() - 1);
-
-                        // Update ObservableList to reflect the stock change
-                        bookData.clear();
-                        bookData.addAll(User.books);
-
-                        int indexBorrowBooks = -1;
-                        for (int i = 0; i < User.borrowBooks.size(); i++) {
-                            if (User.borrowBooks.get(i).get(0).equals(User.loginStudent)) {
-                                indexBorrowBooks = i;
-                                break;
-                            }
-                        }
-                        book.setDuration(7);
-                        if (indexBorrowBooks < 0) {
-                            ArrayList<String> temp = new ArrayList<>();
-                            temp.add(User.loginStudent);
-                            temp.add(book.getId_buku());
-                            User.borrowBooks.add(temp);
-                        } else {
-                            User.borrowBooks.get(indexBorrowBooks).add(book.getId_buku());
-                        }
-
-                        // Update the TableView to show the updated stock
-                        tableView.refresh();
-
+                    
+                    NotificationService realNotificationService = (email, bookId, title, returnDate) -> {
                         LocalDateTime now = LocalDateTime.now();
                         DateTimeFormatter formatter = DateTimeFormatter.ofPattern(" yyyy-MM-dd ");
                         String formattedDateTime = now.format(formatter);
-                        LocalDateTime returnDate = now.plus(7, ChronoUnit.DAYS);
-                        String formattedReturnDate = returnDate.format(formatter);
+                        String formattedReturnDate = now.plus(7, ChronoUnit.DAYS).format(formatter);
 
                         SendEmail sendEmail = new SendEmail();
-
                         try {
                             String subject = "Peminjaman Buku Berhasil!";
                             String body = "Terimakasih telah berkunjung ke E-Library.\n"
                                     + "Berikut lampiran tentang buku yang telah dipinjam :\n\n"
-                                    + "Book ID    : " + book.getId_buku() + "\n"
-                                    + "Title      : " + book.getTitle() + "\n"
+                                    + "Book ID    : " + bookId + "\n"
+                                    + "Title      : " + title + "\n"
                                     + "Category   : " + book.getCategory() + "\n"
                                     + "Duration of borrowing : " + " 7 days\n\n"
-                                    + "Batas pengembalian   : " + LocalDate.now().plusDays(7) + "\n\n"
+                                    + "Batas pengembalian   : " + returnDate + "\n\n"
                                     + "saat mengembalikan buku, mohon untuk menyertakan surat pengembalian buku berbentuk pdf dibawah ini. "
                                     + sendEmail.dateinfo();
 
-                            // Create PDF
                             ByteArrayOutputStream baos = new ByteArrayOutputStream();
                             PDDocument document = new PDDocument();
                             PDPage page = new PDPage();
@@ -227,15 +200,15 @@ public class BorrowBook extends Application {
                             contentStream.newLineAtOffset(0, -45);
                             contentStream.showText("Berikut lampiran tentang buku yang telah dipinjam :");
                             contentStream.newLineAtOffset(0, -30);
-                            contentStream.showText("Book ID                            : " + book.getId_buku());
+                            contentStream.showText("Book ID                            : " + bookId);
                             contentStream.newLineAtOffset(0, -30);
-                            contentStream.showText("Title                                 : " + book.getTitle());
+                            contentStream.showText("Title                                 : " + title);
                             contentStream.newLineAtOffset(0, -30);
                             contentStream.showText("Category                          : " + book.getCategory());
                             contentStream.newLineAtOffset(0, -30);
                             contentStream.showText("Duration of borrowing   : 7 days");
                             contentStream.newLineAtOffset(0, -30);
-                            contentStream.showText("Batas pengembalian        : " + LocalDate.now().plusDays(7));
+                            contentStream.showText("Batas pengembalian        : " + returnDate);
                             contentStream.newLineAtOffset(0, -50);
                             contentStream.showText("NB : Batas peminjaman buku di perpustakaan E-Library maksimal ");
                             contentStream.newLineAtOffset(0, -20);
@@ -245,44 +218,58 @@ public class BorrowBook extends Application {
                             contentStream.newLineAtOffset(0, -20);
                             contentStream.showText("         sesuai ketentuan yang berlaku.");
                             contentStream.newLineAtOffset(0, -103);
-                            contentStream.showText("           Peminjam                                                       Admin E-Library");
+                            contentStream.showText("           Peminjam                                                                 Admin E-Library");
                             contentStream.newLineAtOffset(0, -120);
-                            contentStream.showText("     Mr. Fahmi Alfaqih                                              Mr. Adnan Amhar");
+                            contentStream.showText("     Mr. Fahmi Alfaqih                                                              Mr. Adnan Amhar");
                             contentStream.newLineAtOffset(0, -70);
-                            contentStream.showText("                                For More Information Contact Us: ");
-                            contentStream.newLineAtOffset(0, -30);
-                            contentStream.showText("                                WhatsApp : 082134079479 (Admin) ");
+                            contentStream.showText("                                University Of Muhammadiyah Malang ");
                             contentStream.endText();
-
                             contentStream.close();
 
                             document.save(baos);
                             document.close();
 
-                            if (LoginStudent.nimTextField.getText().equals("202310370311001")) {
-                                sendEmail.sendEmail(Email1, subject, body);
-                                showPopupNotification(primaryStage, "NIM: " + User.loginStudent + "\n Book Borrowed Successfully On: " + formattedDateTime + "\n Book Must Be Returned On: " + formattedReturnDate + " (7 Days)" + "\n Email Succesfully Send To " + Email1);
-                                sendEmail.sendWithAttachment(Email1, subject, body, baos.toByteArray(), "Peminjaman_Buku.pdf");
-
-                            } else {
-                                sendEmail.sendEmail(Email2, subject, body);
-                                showPopupNotification(primaryStage, "NIM: " + User.loginStudent + "\n Book Borrowed Successfully On: " + formattedDateTime + "\n Book Must Be Returned On: " + formattedReturnDate + " (7 Days)" + "\n Email Succesfully Send To " + Email2);
-                                sendEmail.sendWithAttachment(Email2, subject, body, baos.toByteArray(), "Peminjaman_Buku.pdf");
-
-                            }
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                            showPopupNotification(primaryStage, "Failed to create PDF.");
+                            sendEmail.sendEmail(email, subject, body);
+                            showPopupNotification(primaryStage, "NIM: " + User.loginStudent + "\n Book Borrowed Successfully On: " + formattedDateTime + "\n Book Must Be Returned On: " + formattedReturnDate + " (7 Days)" + "\n Email Succesfully Send To " + email);
+                            sendEmail.sendWithAttachment(email, subject, body, baos.toByteArray(), "Peminjaman_Buku.pdf");
 
                         } catch (Exception e) {
-                            System.out.println("Error sending email");
+                            e.printStackTrace();
                         }
-                        return;
+                    };
+
+                    BorrowManager borrowManager = new BorrowManager(realNotificationService);
+                    String targetEmail = LoginStudent.nimTextField.getText().equals("202310370311001") ? Email1 : Email2;
+                    
+                    boolean isBorrowProcessed = borrowManager.processBorrow(book, targetEmail);
+
+                    if (isBorrowProcessed) {
+                        bookData.clear();
+                        bookData.addAll(User.books);
+
+                        int indexBorrowBooks = -1;
+                        for (int i = 0; i < User.borrowBooks.size(); i++) {
+                            if (User.borrowBooks.get(i).get(0).equals(User.loginStudent)) {
+                                indexBorrowBooks = i;
+                                break;
+                            }
+                        }
+
+                        if (indexBorrowBooks < 0) {
+                            ArrayList<String> temp = new ArrayList<>();
+                            temp.add(User.loginStudent);
+                            temp.add(book.getId_buku());
+                            User.borrowBooks.add(temp);
+                        } else {
+                            User.borrowBooks.get(indexBorrowBooks).add(book.getId_buku());
+                        }
+
+                        tableView.refresh();
                     } else {
                         errorLabel.setText("Stock not available");
                         showPopupNotification(primaryStage, "Stock not available");
                     }
-                    break;
+                    return;
                 }
             }
 
@@ -292,18 +279,17 @@ public class BorrowBook extends Application {
             }
         });
 
-        // Menambahkan key listener ke root untuk menangani tombol Enter
         root.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ENTER) {
                 if (!isBookIdSet) {
                     Book selectedBook = tableView.getSelectionModel().getSelectedItem();
                     if (selectedBook != null) {
                         bookIdField.setText(selectedBook.getId_buku());
-                        isBookIdSet = true;  // Set flag to true after setting Book ID
+                        isBookIdSet = true;
                     }
                 } else {
                     okButton.fire();
-                    isBookIdSet = false;  // Reset flag after borrowing book
+                    isBookIdSet = false;
                 }
             }
         });
@@ -319,9 +305,7 @@ public class BorrowBook extends Application {
         primaryStage.setScene(scene);
         primaryStage.show();
 
-        // Apply theme
         DarkLightMode.applyTheme(root);
-        // Apply dark mode to the table if dark theme is active
         if (DarkLightMode.isDarkMode()) {
             applyDarkModeToTable(tableView);
         }
@@ -348,13 +332,11 @@ public class BorrowBook extends Application {
 
         popup.getContent().add(popupContent);
 
-        // Calculate position to show popup at the bottom center of the screen
         double xPos = ownerStage.getX() + (ownerStage.getWidth() / 2) - (popupContent.getWidth() / 2);
         double yPos = ownerStage.getY() + ownerStage.getHeight() - popupContent.getHeight() - 10;
 
         popup.show(ownerStage, xPos, yPos);
 
-        // Hide popup after 3 seconds
         Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(3), event -> popup.hide()));
         timeline.setCycleCount(1);
         timeline.play();
